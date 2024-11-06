@@ -148,7 +148,6 @@ class RadarScript:
     def update_entity(self, entity, player_index, list_entry, player_pawn, player_base_address):
         """Update entity information."""
         
-        # **Change here:**  Initialize player_index to 1
         player_index = 1  
         entity.bvalid = False
 
@@ -157,38 +156,36 @@ class RadarScript:
         list_entry_address = self.dwEntityList + list_entry_offset + 16
         list_entry1 = self.pymem_handler.pm.read_int(list_entry_address)
         if not list_entry1:
-            entity.bvalid = False
-            return
+                entity.bvalid = False
+                return
 
-        # Calculate the player entity address
+            # Calculate the player entity address
         player_ent_offset = 120 * (player_index & 0x1FF)
         player_ent_address = list_entry1 + player_ent_offset
         player_ent = self.pymem_handler.pm.read_int(player_ent_address)
         if not player_ent:
-            entity.bvalid = False
-            return
+                entity.bvalid = False
+                return
 
-        # Read the player's pawn
+            # Read the player's pawn
         player_pawn = self.pymem_handler.pm.read_int(player_ent + self.m_hPlayerPawn)
 
-        # Calculate the second list entry
+            # Calculate the second list entry
         list_entry_offset2 = (8 * (player_pawn & 0x7FFF) >> 9)
-        list_entry_address2 = list_entry + list_entry_offset2 + 16
+        list_entry_address2 = self.dwEntityList + list_entry_offset2 + 16
         list_entry2 = self.pymem_handler.pm.read_int(list_entry_address2)
         if not list_entry2:
-            entity.bvalid = False
-            return
+                entity.bvalid = False
+                return
 
-        # Read the base address of the entity
+            # Read the base address of the entity
         entity_offset = 120 * (player_pawn & 0x1FF)
         entity_address = list_entry2 + entity_offset
         entity.base_address = entity_address
-
         if not entity_address or entity_address == player_base_address:
-            entity.bvalid = False
+                entity.bvalid = False
         else:
-            entity.bvalid = True
-
+                entity.bvalid = True
     def radar(self, entity):
         """Mark the entity as spotted on the radar."""
         if self.global_config['enable_radar'] and entity.bvalid:
