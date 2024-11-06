@@ -89,7 +89,10 @@ class PymemHandler:
         self.pm = None
         self.client_base = None
         self.process_name = process_name
-
+        client_data = Utility.fetch_offsets()
+        self.m_entitySpottedState = client_data["client.dll"]["classes"]["C_CSPlayerPawn"]["fields"]["m_entitySpottedState"]
+        self.m_bSpotted = client_data["client.dll"]["classes"]["EntitySpottedState_t"]["fields"]["m_bSpotted"]
+        
     def initialize_pymem(self):
         """Initializes Pymem and attaches to the game process."""
         try:
@@ -122,9 +125,9 @@ class PymemHandler:
         """Read the base address of an entity."""
         return self.pm.read_uint(list_entry + 120 * (player_pawn & 0x1FF))
 
-    def mark_entity_spotted(self, entity_base_address, spotted_offset):
+    def mark_entity_spotted(self, entity_base_address):
         """Mark the entity as spotted by writing to memory."""
-        self.pm.write_bool(entity_base_address + spotted_offset, True)
+        self.pm.write_bool(entity_base_address + self.m_entitySpottedState + self.m_bSpotted, True)
 
 class RadarScript:
     """Main script for managing entities and radar functionality."""
@@ -139,6 +142,7 @@ class RadarScript:
         self.dwEntityList = offsets["client.dll"]["dwEntityList"]
         self.dwLocalPlayerPawn = offsets["client.dll"]["dwLocalPlayerPawn"]
         self.m_hPlayerPawn = client_data["client.dll"]["classes"]["CCSPlayerController"]["fields"]["m_hPlayerPawn"]
+        self.base_address = None
 
     def update_entity(self, entity, player_index, list_entry, player_pawn, player_base_address):
         """Update entity information."""
@@ -184,10 +188,10 @@ class RadarScript:
         else:
             entity.bvalid = True
 
-    def radar(self, entity, spotted_offset):
+    def radar(self, entity):
         """Mark the entity as spotted on the radar."""
         if self.global_config['enable_radar'] and entity.bvalid:
-            self.pymem_handler.mark_entity_spotted(entity.base_address, spotted_offset)
+            self.pymem_handler.pm.write_float(entity.base_address + self.m_entitySpottedState + self.m_bSpotted , 1)
 
     def render_entities(self):
         """Process and render all entities on radar."""
@@ -197,7 +201,7 @@ class RadarScript:
 
         for i, enemy in enumerate(self.entity_list):
             self.update_entity(enemy, i, list_entry, player_base_address)
-            if enemy.b_valid:
+            if enemy.bvalid:
                 self.radar(enemy, self.m_entitySpottedState + 
                            self.m_bSpotted)
 
@@ -206,5 +210,5 @@ if __name__ == '__main__':
     script = RadarScript()
     if script.pymem_handler.initialize_pymem() and script.pymem_handler.get_client_module():
         while True:  # Thêm vòng lặp while True
-            script.render_entities()
+            script.radar()
             time.sleep(0.1) 
