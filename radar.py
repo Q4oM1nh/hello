@@ -141,6 +141,7 @@ class RadarScript:
         self.m_bSpotted = client_data["client.dll"]["classes"]["EntitySpottedState_t"]["fields"]["m_bSpotted"]
         self.dwEntityList = offsets["client.dll"]["dwEntityList"]
         self.dwLocalPlayerPawn = offsets["client.dll"]["dwLocalPlayerPawn"]
+        self.dwLocalPlayerController = offsets["client.dll"]["dwLocalPlayerController"]
         self.m_hPlayerPawn = client_data["client.dll"]["classes"]["CCSPlayerController"]["fields"]["m_hPlayerPawn"]
         self.base_address = None
 
@@ -191,19 +192,19 @@ class RadarScript:
     def radar(self, entity):
         """Mark the entity as spotted on the radar."""
         if self.global_config['enable_radar'] and entity.bvalid:
-            self.pymem_handler.pm.write_float(entity.base_address + self.m_entitySpottedState + self.m_bSpotted , 1)
+            self.pymem_handler.pm.write_bool(entity.base_address + self.m_entitySpottedState + self.m_bSpotted , 1)
 
     def render_entities(self):
         """Process and render all entities on radar."""
         client_base = self.pymem_handler.client_base
         list_entry = client_base + self.dwEntityList
-        player_base_address = self.dwLocalPlayerPawn + client_base  # Set your local player's base address here
+        local_player_controller = self.pymem_handler.pm.read_int(client_base + self.dwLocalPlayerController)  # Get local player controller
+        player_base_address = self.pymem_handler.pm.read_int(local_player_controller + self.m_hPlayerPawn) # Get local player pawn
 
         for i, enemy in enumerate(self.entity_list):
-            self.update_entity(enemy, i, list_entry, player_base_address)
-            if enemy.bvalid:
-                self.radar(enemy, self.m_entitySpottedState + 
-                           self.m_bSpotted)
+            self.update_entity(enemy, i, list_entry, player_base_address, player_base_address)  # Pass player_base_address as player_pawn
+        if enemy.bvalid:
+            self.radar(enemy)
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
