@@ -191,17 +191,50 @@ class RadarScript:
         if self.global_config['enable_radar'] and entity.bvalid:
             self.pymem_handler.pm.write_bool(entity.base_address + self.m_entitySpottedState + self.m_bSpotted , 1)
 
-    def render_entities(self):
+   def render_entities(self):
         """Process and render all entities on radar."""
         client_base = self.pymem_handler.client_base
-        list_entry = client_base + self.dwEntityList
-        local_player_controller = self.pymem_handler.pm.read_int(client_base + self.dwLocalPlayerController)  # Get local player controller
-        player_base_address = self.pymem_handler.pm.read_int(local_player_controller + self.m_hPlayerPawn) # Get local player pawn
+        if client_base is None:
+            logging.error("client_base is None. Cannot proceed with render_entities.")
+            return
 
-        for i, enemy in enumerate(self.entity_list):
-            self.update_entity(enemy, i, list_entry, player_base_address, player_base_address)  # Pass player_base_address as player_pawn
-        if enemy.bvalid:
-            self.radar(enemy)
+        try:
+            # Calculate list_entry and validate
+            list_entry = client_base + self.dwEntityList
+            if list_entry <= 0:
+                logging.error(f"Invalid list_entry: {list_entry}")
+                return
+
+            # Calculate local_player_controller and validate
+            local_player_controller = self.pymem_handler.pm.read_int(client_base + self.dwLocalPlayerController)
+            if local_player_controller <= 0:
+                logging.error(f"Invalid local_player_controller: {local_player_controller}")
+                return
+
+            # Calculate player_base_address and validate
+            player_base_address = self.pymem_handler.pm.read_int(local_player_controller + self.m_hPlayerPawn)
+            if player_base_address <= 0:
+                logging.error(f"Invalid player_base_address: {player_base_address}")
+                return
+
+            # Process each entity
+            for i, enemy in enumerate(self.entity_list):
+                self.update_entity(enemy, i, list_entry, player_base_address, player_base_address)
+
+            # Only attempt radar update if the entity address is valid
+            if enemy.base_address and enemy.base_address > 0:
+                if enemy.bvalid:
+                    self.radar(enemy)
+                else:
+                    logging.debug(f"Entity {i} is invalid, skipping radar update.")
+            else:
+                logging.warning(f"Invalid base_address for entity {i}: {enemy.base_address}")
+
+        except pymem.exception.MemoryReadError as e:
+            logging.error(f"Memory read error: {e}")
+        except Exception as e:
+            logging.error(f"Unexpected error occurred while rendering entities: {e}")
+
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
